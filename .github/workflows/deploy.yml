@@ -20,7 +20,7 @@ jobs:
           script: |
             set -e
 
-            cd domains/nusvitahealth.com/public_html/api.fleet.management
+            cd domains/nusvitahealth.com/public_html/api.restaurant.pos
 
             echo "Deploying..."
 

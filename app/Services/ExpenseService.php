@@ -26,7 +26,7 @@ class ExpenseService
             }))
             ->orderByDesc('expense_date')
             ->orderByDesc('id')
-            ->get();
+            ->when(isset($filters['per_page']), fn ($query) => $query->paginate(min(100, max(1, (int) $filters['per_page']))), fn ($query) => $query->get());
     }
 
     public function create(array $data, User $user): Expense

@@ -11,7 +11,7 @@ class Printer extends Model
 
     protected $fillable = [
         'restaurant_id', 'branch_id', 'name', 'purpose',
-        'connection_type', 'ip', 'port', 'system_printer_name', 'is_active',
+        'connection_type', 'output_mode', 'ip', 'port', 'system_printer_name', 'is_active',
     ];
 
     protected function casts(): array

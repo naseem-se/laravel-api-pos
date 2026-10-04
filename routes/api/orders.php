@@ -11,7 +11,9 @@ Route::middleware(['auth:sanctum', 'tenant', 'subscription'])->group(function ()
 
     Route::middleware('role:owner|cashier,sanctum')->group(function () {
         Route::post('orders', [OrderController::class, 'store']);
+        Route::patch('orders/{order}/checkout', [OrderController::class, 'checkout']);
         Route::patch('orders/{order}/cancel', [OrderController::class, 'cancel']);
+        Route::patch('orders/{order}/table', [OrderController::class, 'reallocateTable']);
         Route::put('orders/{order}/items', [OrderController::class, 'updateItems']);
     });
 

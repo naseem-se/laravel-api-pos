@@ -9,6 +9,9 @@ use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Notifications\CustomResetPasswordNotification;
 
+/**
+ * @property int $id
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasRoles, Notifiable;

@@ -53,6 +53,14 @@ class SuperAdminController extends Controller
         return response()->json(['success' => true, 'restaurant' => new RestaurantResource($restaurant)]);
     }
 
+    public function destroy(int $id)
+    {
+        $restaurant = Restaurant::allRestaurants()->findOrFail($id);
+        $this->superAdminService->deleteRestaurant($restaurant);
+
+        return response()->json(['success' => true, 'message' => 'Restaurant and associated data deleted']);
+    }
+
     public function changePlan(AdminPlanRequest $request, int $id)
     {
         $restaurant = Restaurant::allRestaurants()->findOrFail($id);

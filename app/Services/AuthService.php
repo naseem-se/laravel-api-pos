@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ApiException;
 use App\Models\Restaurant;
+use App\Models\Plan;
 use App\Models\User;
 use App\Support\Tenant;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +17,20 @@ class AuthService
     public function registerRestaurant(array $data): array
     {
         return DB::transaction(function () use ($data) {
+            $plan = Plan::query()
+                ->where('is_active', true)
+                ->when($data['plan'] ?? null, fn ($query, $slug) => $query->where('slug', $slug))
+                ->orderBy('display_order')
+                ->orderBy('id')
+                ->first();
+
+            if (! $plan) {
+                throw ApiException::badRequest('No active plans are available for registration.');
+            }
+
             $restaurant = Restaurant::create([
                 'name' => $data['restaurant_name'],
+                'subscription_plan' => $plan->slug,
                 'subscription_status' => 'active',
                 'subscription_start_date' => now(),
                 'subscription_end_date' => now()->addDays(30),

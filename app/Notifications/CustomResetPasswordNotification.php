@@ -7,6 +7,10 @@ use Illuminate\Notifications\Messages\MailMessage;
 
 class CustomResetPasswordNotification extends ResetPasswordBase
 {
+    public function __construct(string $token)
+    {
+        parent::__construct($token);
+    }
 
     public function toMail($notifiable): MailMessage
     {

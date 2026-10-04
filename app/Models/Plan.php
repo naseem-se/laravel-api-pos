@@ -9,6 +9,7 @@ class Plan extends Model
     protected $fillable = [
         'slug', 'name', 'price_monthly', 'currency',
         'max_branches', 'max_orders_per_month', 'features', 'display_order', 'is_active',
+        'kds_enabled', 'online_ordering_enabled',
     ];
 
     protected function casts(): array
@@ -17,6 +18,8 @@ class Plan extends Model
             'price_monthly' => 'decimal:2',
             'features' => 'array',
             'is_active' => 'boolean',
+            'kds_enabled' => 'boolean',
+            'online_ordering_enabled' => 'boolean',
         ];
     }
 }

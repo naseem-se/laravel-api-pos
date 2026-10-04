@@ -34,7 +34,7 @@ class InventoryService
             ->when(isset($filters['is_active']), fn ($query) => $query->where('is_active', $filters['is_active']))
             ->withCount('menuItems')
             ->orderBy('name')
-            ->get();
+            ->when(isset($filters['per_page']), fn ($query) => $query->paginate(min(100, max(1, (int) $filters['per_page']))), fn ($query) => $query->get());
     }
 
     public function create(array $data, ?int $userId): InventoryItem

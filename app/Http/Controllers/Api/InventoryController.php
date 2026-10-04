@@ -26,11 +26,22 @@ class InventoryController extends Controller
 
     public function index(Request $request)
     {
-        return $this->success($this->inventoryService->list([
+        $items = $this->inventoryService->list([
             'search' => $request->query('search'),
             'low_stock' => $request->boolean('low_stock'),
             'is_active' => $request->has('is_active') ? $request->boolean('is_active') : null,
-        ]));
+            'per_page' => $request->query('per_page', $request->query('perPage')),
+        ]);
+
+        if (method_exists($items, 'total')) {
+            return $this->success($items->items(), extra: ['pagination' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'total' => $items->total(),
+            ]]);
+        }
+
+        return $this->success($items);
     }
 
     public function store(StoreInventoryItemRequest $request)

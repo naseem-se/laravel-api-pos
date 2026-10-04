@@ -13,7 +13,7 @@ class PlanController extends Controller
 
     public function index()
     {
-        $plans = Plan::where('is_active', true)->orderBy('display_order')->get();
+        $plans = Plan::where('is_active', true)->orderBy('display_order')->orderBy('id')->get();
 
         return $this->success(PlanResource::collection($plans));
     }

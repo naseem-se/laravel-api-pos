@@ -118,6 +118,9 @@ class EscPosService
             $this->row('Discount', '-'.$this->money((float) $order->discount_amount), $width);
         }
         $this->bold(true)->row('TOTAL', $this->money((float) $order->total_amount), $width)->bold(false);
+        if ($order->payment_method) {
+            $this->row('Paid by', ucfirst($order->payment_method), $width);
+        }
         $this->drawLine($width);
 
         $this->alignCenter()->println('Thank you!');

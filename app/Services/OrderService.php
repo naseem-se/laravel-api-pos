@@ -38,8 +38,25 @@ class OrderService
             ->when($filters['order_type'] ?? null, fn ($q, $v) => $q->where('order_type', $v))
             ->when($filters['table_id'] ?? null, fn ($q, $v) => $q->where('table_id', $v))
             ->when($filters['branch_id'] ?? null, fn ($q, $v) => $q->where('branch_id', $v))
+            ->when($filters['search'] ?? null, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('order_number', 'like', "%{$search}%")
+                        ->orWhere('customer_name', 'like', "%{$search}%")
+                        ->orWhereHas('table', fn ($tableQuery) => $tableQuery->where('table_number', 'like', "%{$search}%"));
+                });
+            })
             ->orderByDesc('created_at')
-            ->get();
+            ->when(isset($filters['per_page']), fn ($query) => $query->paginate(min(100, max(1, (int) $filters['per_page']))), fn ($query) => $query->get());
+    }
+
+    public function statusCounts(?int $branchId = null): array
+    {
+        return Order::query()
+            ->when($branchId, fn ($query, $id) => $query->where('branch_id', $id))
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->all();
     }
 
     public function find(int $id): Order
@@ -67,19 +84,21 @@ class OrderService
             $restaurant = Restaurant::allRestaurants()->find(Tenant::id());
             $taxRatePercent = $restaurant->settings['taxRatePercent'] ?? 0;
             $taxAmount = round($subtotalAmount * $taxRatePercent / 100, 2);
-            $totalAmount = $subtotalAmount + $taxAmount;
+            $discountAmount = 0;
+            $totalAmount = round($subtotalAmount + $taxAmount, 2);
 
             $order = Order::create([
                 'branch_id' => $branchId,
                 'order_number' => $this->nextOrderNumber(),
                 'order_type' => $data['order_type'],
+                'payment_method' => null,
                 'table_id' => $data['order_type'] === 'dine-in' ? $data['table_id'] : null,
                 'customer_name' => $data['customer_name'] ?? null,
                 'placed_by_user_id' => $user?->id,
                 'status' => 'pending',
                 'subtotal_amount' => $subtotalAmount,
                 'tax_amount' => $taxAmount,
-                'discount_amount' => 0,
+                'discount_amount' => $discountAmount,
                 'total_amount' => $totalAmount,
                 'notes' => $data['notes'] ?? '',
             ]);
@@ -118,7 +137,14 @@ class OrderService
             $order->statusHistory()->create(['status' => $nextStatus]);
 
             if ($order->order_type === 'dine-in' && $order->table_id && in_array($nextStatus, ['completed', 'cancelled'], true)) {
-                $order->table()->update(['status' => 'available']);
+                $hasOtherOpenOrders = Order::query()
+                    ->where('table_id', $order->table_id)
+                    ->where('id', '!=', $order->id)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
+                    ->exists();
+                if (! $hasOtherOpenOrders) {
+                    $order->table()->update(['status' => 'available']);
+                }
             }
         });
 
@@ -133,6 +159,86 @@ class OrderService
         return $this->transitionStatus($order, 'cancelled');
     }
 
+    public function checkout(Order $order, array $data): Order
+    {
+        return DB::transaction(function () use ($order, $data) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->status !== 'completed') {
+                throw ApiException::badRequest('Discounts and payment can only be recorded after the order is completed.');
+            }
+            if ($order->payment_method !== null) {
+                throw ApiException::badRequest('This order has already been paid.');
+            }
+
+            $discountAmount = (float) ($data['discount_amount'] ?? 0);
+            $orderTotal = (float) $order->subtotal_amount + (float) $order->tax_amount;
+            if ($discountAmount > $orderTotal) {
+                throw ApiException::badRequest('The discount cannot be greater than the order total.');
+            }
+
+            $order->update([
+                'payment_method' => $data['payment_method'],
+                'discount_amount' => $discountAmount,
+                'total_amount' => max(0, round($orderTotal - $discountAmount, 2)),
+            ]);
+
+            return $order->load(self::DETAIL_RELATIONS);
+        });
+    }
+
+    public function reallocateTable(Order $order, int $tableId): Order
+    {
+        if ($order->order_type !== 'dine-in' || in_array($order->status, ['completed', 'cancelled'], true)) {
+            throw ApiException::badRequest('Only open dine-in orders can be moved to another table.');
+        }
+
+        DB::transaction(function () use ($order, $tableId) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+            $table = DiningTable::query()->lockForUpdate()->findOrFail($tableId);
+
+            if ($order->order_type !== 'dine-in' || in_array($order->status, ['completed', 'cancelled'], true)) {
+                throw ApiException::badRequest('Only open dine-in orders can be moved to another table.');
+            }
+
+            if ((int) $table->branch_id !== (int) $order->branch_id) {
+                throw ApiException::badRequest('The new table must be in the same location as the order.');
+            }
+
+            if ($table->id !== $order->table_id && $table->status !== 'available') {
+                throw ApiException::badRequest('The selected table is not available.');
+            }
+
+            $occupiedByAnotherOrder = Order::query()
+                ->where('table_id', $table->id)
+                ->where('id', '!=', $order->id)
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->exists();
+            if ($occupiedByAnotherOrder) {
+                throw ApiException::badRequest('The selected table already has an open order.');
+            }
+
+            $previousTableId = $order->table_id;
+            $order->update(['table_id' => $table->id]);
+            $table->update(['status' => 'occupied']);
+
+            if ($previousTableId && $previousTableId !== $table->id) {
+                $hasOtherOpenOrders = Order::query()
+                    ->where('table_id', $previousTableId)
+                    ->whereNotIn('status', ['completed', 'cancelled'])
+                    ->exists();
+                if (! $hasOtherOpenOrders) {
+                    DiningTable::query()->whereKey($previousTableId)->update(['status' => 'available']);
+                }
+            }
+        });
+
+        $order->refresh()->load(self::DETAIL_RELATIONS);
+        event(new OrderStatusChanged($order));
+
+        return $order;
+    }
+
     public function updateItems(Order $order, array $items): Order
     {
         if ($order->status !== 'pending') {
@@ -145,7 +251,8 @@ class OrderService
             $restaurant = Restaurant::allRestaurants()->find(Tenant::id());
             $taxRatePercent = $restaurant->settings['taxRatePercent'] ?? 0;
             $taxAmount = round($subtotalAmount * $taxRatePercent / 100, 2);
-            $totalAmount = max(0, $subtotalAmount + $taxAmount - $order->discount_amount);
+            $discountAmount = min((float) $order->discount_amount, $subtotalAmount + $taxAmount);
+            $totalAmount = max(0, $subtotalAmount + $taxAmount - $discountAmount);
 
             $this->inventoryService->restoreOrderStock($order, 'order_edit_return');
             $order->items()->delete(); // cascades to modifiers via FK
@@ -155,6 +262,7 @@ class OrderService
             $order->update([
                 'subtotal_amount' => $subtotalAmount,
                 'tax_amount' => $taxAmount,
+                'discount_amount' => $discountAmount,
                 'total_amount' => $totalAmount,
             ]);
 

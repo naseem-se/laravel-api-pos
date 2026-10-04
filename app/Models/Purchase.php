@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $status
+ * @property string $subtotal_amount
+ * @property string $tax_amount
+ * @property string $discount_amount
+ * @property string $total_amount
+ */
 class Purchase extends Model
 {
     use BelongsToRestaurant;

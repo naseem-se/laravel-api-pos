@@ -18,14 +18,25 @@ class ExpenseController extends Controller
 
     public function index(Request $request)
     {
-        return $this->success($this->expenseService->list([
+        $expenses = $this->expenseService->list([
             'search' => $request->query('search'),
             'category' => $request->query('category'),
             'branch_id' => $request->query('branch_id'),
             'from' => $request->query('from'),
             'to' => $request->query('to'),
             'include_voided' => $request->boolean('include_voided'),
-        ]));
+            'per_page' => $request->query('per_page', $request->query('perPage')),
+        ]);
+
+        if (method_exists($expenses, 'total')) {
+            return $this->success($expenses->items(), extra: ['pagination' => [
+                'current_page' => $expenses->currentPage(),
+                'last_page' => $expenses->lastPage(),
+                'total' => $expenses->total(),
+            ]]);
+        }
+
+        return $this->success($expenses);
     }
 
     public function summary(Request $request)

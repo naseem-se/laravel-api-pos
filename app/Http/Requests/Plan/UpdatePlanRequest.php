@@ -18,7 +18,9 @@ class UpdatePlanRequest extends FormRequest
             'features' => ['nullable', 'array'],
             'features.*' => ['string'],
             'display_order' => ['nullable', 'integer', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
+            'kds_enabled' => ['sometimes', 'boolean'],
+            'online_ordering_enabled' => ['sometimes', 'boolean'],
         ];
         // slug is deliberately NOT updatable — Restaurant.subscription_plan
         // stores it as a string reference; changing a plan's slug after

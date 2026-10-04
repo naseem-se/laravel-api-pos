@@ -43,8 +43,7 @@ class PurchasingService
             ->when($filters['to'] ?? null, fn ($query, $date) => $query->whereDate('purchase_date', '<=', $date))
             ->orderByDesc('purchase_date')
             ->orderByDesc('id')
-            ->get()
-            ->map(fn (Purchase $purchase) => $this->presentPurchase($purchase));
+            ->when(isset($filters['per_page']), fn ($query) => $query->paginate(min(100, max(1, (int) $filters['per_page'])))->through(fn (Purchase $purchase) => $this->presentPurchase($purchase)), fn ($query) => $query->get()->map(fn (Purchase $purchase) => $this->presentPurchase($purchase)));
     }
 
     public function findPurchase(Purchase $purchase): array

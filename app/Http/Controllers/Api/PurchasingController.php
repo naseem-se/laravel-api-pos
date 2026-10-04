@@ -42,12 +42,23 @@ class PurchasingController extends Controller
 
     public function index(Request $request)
     {
-        return $this->success($this->purchasingService->purchases([
+        $purchases = $this->purchasingService->purchases([
             'status' => $request->query('status'),
             'supplier_id' => $request->query('supplier_id'),
             'from' => $request->query('from'),
             'to' => $request->query('to'),
-        ]));
+            'per_page' => $request->query('per_page', $request->query('perPage')),
+        ]);
+
+        if (method_exists($purchases, 'total')) {
+            return $this->success($purchases->items(), extra: ['pagination' => [
+                'current_page' => $purchases->currentPage(),
+                'last_page' => $purchases->lastPage(),
+                'total' => $purchases->total(),
+            ]]);
+        }
+
+        return $this->success($purchases);
     }
 
     public function store(StorePurchaseRequest $request)

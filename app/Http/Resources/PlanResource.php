@@ -18,6 +18,10 @@ class PlanResource extends JsonResource
             'max_branches' => $this->max_branches,
             'max_orders_per_month' => $this->max_orders_per_month,
             'features' => $this->features ?? [],
+            'display_order' => $this->display_order,
+            'is_active' => $this->is_active,
+            'kds_enabled' => $this->kds_enabled,
+            'online_ordering_enabled' => $this->online_ordering_enabled,
         ];
     }
 }

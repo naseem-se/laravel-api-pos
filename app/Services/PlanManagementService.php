@@ -10,7 +10,7 @@ class PlanManagementService
 {
     public function listAll()
     {
-        return Plan::orderBy('display_order')->get();
+        return Plan::orderBy('display_order')->orderBy('id')->get();
     }
 
     public function create(array $data): Plan

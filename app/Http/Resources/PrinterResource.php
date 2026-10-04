@@ -14,6 +14,7 @@ class PrinterResource extends JsonResource
             'name' => $this->name,
             'purpose' => $this->purpose,
             'connection_type' => $this->connection_type,
+            'output_mode' => $this->output_mode ?? 'escpos',
             'ip' => $this->ip,
             'port' => $this->port,
             'system_printer_name' => $this->system_printer_name,

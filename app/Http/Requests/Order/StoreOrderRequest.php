@@ -16,7 +16,6 @@ class StoreOrderRequest extends FormRequest
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
-
             'items' => ['required', 'array', 'min:1'],
             'items.*.menu_item_id' => ['required', 'integer', 'exists:menu_items,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],

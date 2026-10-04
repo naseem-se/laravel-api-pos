@@ -8,6 +8,7 @@ Route::middleware(['auth:sanctum', 'role:superadmin,sanctum'])->prefix('admin')-
     Route::get('stats', [SuperAdminController::class, 'stats']);
     Route::get('restaurants', [SuperAdminController::class, 'restaurants']);
     Route::get('restaurants/{id}', [SuperAdminController::class, 'restaurantDetail']);
+    Route::delete('restaurants/{id}', [SuperAdminController::class, 'destroy']);
     Route::patch('restaurants/{id}/status', [SuperAdminController::class, 'toggleStatus']);
     Route::patch('restaurants/{id}/plan', [SuperAdminController::class, 'changePlan']);
     Route::patch('restaurants/{id}/renew', [SuperAdminController::class, 'renew']);
